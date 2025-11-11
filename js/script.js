@@ -1,15 +1,23 @@
 const cardsWrapper = document.querySelector(".main-wrapper")
 const pagesWrapper = document.querySelector(".pages-wrapper")
+const main = document.querySelector("main")
 const limitSelector = document.querySelector("#select-limit")
 
-const optionsPagesLimit = [5, 10, 20,50]
+const optionsPagesLimit = [5, 10, 20, 50]
+
+
 
 const baseURL = "https://jsonplaceholder.typicode.com/comments"
 let page = 1
-let responseData = []
+
+let responseData = [];
+
+
+const getIsMobile = () => window.innerWidth < 850;
 
 
 // create cards
+let globalIndex = 1
 const createCard = (data) => {
     const card = document.createElement("div")
     card.classList.add("card")
@@ -23,16 +31,21 @@ const createCard = (data) => {
 
     card.append(userName, userEmail, emailText)
     cardsWrapper.appendChild(card)
-    userName.innerHTML = data.name
+    userName.innerHTML = globalIndex + '. - ' + data.name
     userEmail.innerHTML = data.email
     emailText.innerHTML = data.body
 }
 // ------------
 
+const addSearchParams = () => {
+    history.pushState(null, "", `?current-page=${page}&max-content=${limitSelector.value}`)
+}
+
 // create pages
 const clearDOM = () => {
     cardsWrapper.innerHTML = ""
     pagesWrapper.innerHTML = ""
+    globalIndex = 1
 }
 
 const goToPage = (pageNum) => {
@@ -48,10 +61,14 @@ const createPages = (totalCount) => {
     pages.forEach((elem) => {
         const pageBtn = document.createElement("button")
         pageBtn.classList.add("page-number")
-        pageBtn.onclick = () => goToPage(elem)
-        if(elem == "..") pageBtn.disabled = true
+        pageBtn.onclick = () => {
+            goToPage(elem)
+            addSearchParams()
+        }
+        if (elem == "..") pageBtn.disabled = true
+        if (elem == page) pageBtn.classList.add("selected-btn")
         pageBtn.innerHTML = elem
-        
+
         pagesWrapper.appendChild(pageBtn)
     })
 }
@@ -68,10 +85,10 @@ const getArrayForPages = (maxPage, currentPage) => {
     }
 
     pages = [1];
-    if (currentPage == 1) pages.push(2,"..",maxPage)
+    if (currentPage == 1) pages.push(2, "..", maxPage)
     if (currentPage <= 3 && currentPage > 1) pages.push(2)
-    if (currentPage == 2) pages.push(3, "..",maxPage)
-    if (currentPage == 3) pages.push(3, 4, "..",maxPage)
+    if (currentPage == 2) pages.push(3, "..", maxPage)
+    if (currentPage == 3) pages.push(3, 4, "..", maxPage)
 
     if (currentPage > 3 && maxPage - currentPage > 2) pages.push("..", prevLast, currentPage, nextLast, "..", maxPage)
 
@@ -84,7 +101,10 @@ const getArrayForPages = (maxPage, currentPage) => {
 // ------------------
 
 // fetch
+let isLoading = false
 const fetchFunc = async () => {
+    if(isLoading) return
+    isLoading = true
     try {
         const response = await fetch(`${baseURL}?_page=${page}&_limit=${limitSelector.value}`)
         const data = await response.json()
@@ -98,11 +118,15 @@ const fetchFunc = async () => {
         responseData = data
         responseData.forEach((elem) => {
             createCard(elem)
+            globalIndex++
         })
-        createPages(totalCount)
+        if(!getIsMobile()) createPages(totalCount)
+        
 
     } catch (err) {
         console.log(err.status)
+    } finally {
+        isLoading = false
     }
 }
 // --------------------
@@ -117,11 +141,49 @@ const createSelectOptions = () => {
     })
 }
 
+
 limitSelector.onchange = () => {
     clearDOM()
     fetchFunc()
+    addSearchParams()
+}
+
+// mobile scroll
+main.onscroll = () => {
+    if(!getIsMobile()) return
+    // main.scrollHeight вся высота скролла 
+    // main.offsetHeight - высота видимой зоны экрана
+    // main.scrollTop - высота проскроленого 
+    //
+    console.log(main.scrollHeight - (main.offsetHeight * 2))
+    console.log(main.scrollTop, 'main.scrollTop')
+    if(main.scrollHeight - (main.offsetHeight * 2) < main.scrollTop ){
+        console.log('ss')
+        fetchFunc()
+    }
 }
 
 // onLoad
-fetchFunc()
-createSelectOptions()
+
+
+const start = () => {
+    createSelectOptions() // создаю опшин для селекта
+
+    // получаю данные из урл для отображение стартовых 
+    const params = new URLSearchParams(window.location.search);
+
+    const searchParamPage = params.get("current-page")
+    const searchParamLimit = params.get("max-content")
+
+    if (searchParamPage !== null) page = searchParamPage
+    if (searchParamLimit !== null) limitSelector.value = searchParamLimit;
+
+
+
+
+    fetchFunc()
+
+}
+
+
+start()
