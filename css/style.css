@@ -30,6 +30,7 @@ footer {
     align-items: center;
     height: 60px;
     z-index: 10;
+    gap: 20px;
 }
 
 header {
@@ -60,6 +61,14 @@ header {
     gap: 8px;
     border: 3px solid black;
     padding: 4px;
+    position: relative;
+}
+
+.delete-card {
+    position: absolute;
+    right: 10px;
+    top: 10px;
+    cursor: pointer;
 }
 
 .main-wrapper {
@@ -91,8 +100,22 @@ header {
     background-color: gray;
 }
 
+.mobile-buttons button {
+    width: 30px;
+    height: 30px;
+}
+
 @media screen and (max-width: 900px) {
     .pages-wrapper {
+        display: none;
+    }
+}
+
+@media screen and (min-width: 900px) {
+    .up-down__btns {
+        display: none;
+    }
+    .mobile-buttons {
         display: none;
     }
 }

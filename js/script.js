@@ -3,11 +3,51 @@ const pagesWrapper = document.querySelector(".pages-wrapper")
 const main = document.querySelector("main")
 const limitSelector = document.querySelector("#select-limit")
 
+const mobileFirstBtn = document.querySelector("#first")
+const mobileLastBtn = document.querySelector("#last")
+
+const downBtn = document.querySelector("#down")
+const upBtn = document.querySelector("#up")
+
 const optionsPagesLimit = [5, 10, 20, 50]
 
 
+const postId = document.querySelector("#post-id")
+const postTitle = document.querySelector("#post-title")
+const postBody = document.querySelector("#post-body")
+const postBtn = document.querySelector("#post-btn")
 
-const baseURL = "https://jsonplaceholder.typicode.com/comments"
+const baseURL = "https://jsonplaceholder.typicode.com/"
+
+let isLoadingPost = false
+const postFunction = async () => {
+    isLoadingPost = true
+    try{
+        const response = await fetch(baseURL + "comments", {
+            method: "POST",
+            body: JSON.stringify({ title: postTitle.value,  body: postBody.value, userId: postId.value}),
+        });
+        const data = await response.json()
+        if (!response.ok) throw {
+            status: response.status,
+            text: data.message
+        }
+
+        console.log(data)
+
+    } catch(e) {
+        console.log(e)
+    } finally {
+        setTimeout(() => {
+            isLoadingPost = false
+        }, 150)
+    }
+}
+
+postBtn.onclick = () => postFunction()
+
+
+
 let page = 1
 
 let responseData = [];
@@ -15,6 +55,22 @@ let responseData = [];
 
 const getIsMobile = () => window.innerWidth < 850;
 
+const configScroll = []
+const pushConfigScroll = () => {
+    const last = configScroll[configScroll.length - 1]
+    configScroll.push({
+        elementsHeight : [],
+        startY : last ? last.endY : 0,
+        endY : last ? last.endY : 0
+    })
+}
+
+const addToConfigScroll = (cardHeight) => {
+    const current = configScroll[configScroll.length - 1]
+
+    current.elementsHeight.push(cardHeight)
+    current.endY += cardHeight //сумма высот всех карточек после последнего запроса (выполняется столько раз, сколько пришло карточек в ответе)
+}
 
 // create cards
 let globalIndex = 1
@@ -28,12 +84,21 @@ const createCard = (data) => {
     userEmail.classList.add("email")
     const emailText = document.createElement("p")
     emailText.classList.add("text")
+    
+    const deleteCard = document.createElement("p")
+    deleteCard.innerHTML = "X"
+    deleteCard.classList.add("delete-card")
+    deleteCard.onclick = () => cardsWrapper.removeChild(card)
 
-    card.append(userName, userEmail, emailText)
+    card.append(userName, userEmail, emailText, deleteCard)
     cardsWrapper.appendChild(card)
-    userName.innerHTML = globalIndex + '. - ' + data.name
+    userName.innerHTML = data.id + '. - ' + data.name
     userEmail.innerHTML = data.email
     emailText.innerHTML = data.body
+
+    //! 
+    addToConfigScroll(card.offsetHeight)
+    
 }
 // ------------
 
@@ -46,6 +111,7 @@ const clearDOM = () => {
     cardsWrapper.innerHTML = ""
     pagesWrapper.innerHTML = ""
     globalIndex = 1
+    configScroll.length = 0
 }
 
 const goToPage = (pageNum) => {
@@ -103,10 +169,9 @@ const getArrayForPages = (maxPage, currentPage) => {
 // fetch
 let isLoading = false
 const fetchFunc = async () => {
-    if(isLoading) return
     isLoading = true
     try {
-        const response = await fetch(`${baseURL}?_page=${page}&_limit=${limitSelector.value}`)
+        const response = await fetch(`${baseURL}comments?_page=${page}&_limit=${limitSelector.value}`)
         const data = await response.json()
 
         if (!response.ok) throw {
@@ -114,19 +179,29 @@ const fetchFunc = async () => {
             text: data.message
         }
 
-        const totalCount = +response.headers.get("x-total-count");
+        const totalCount = +response.headers.get("x-total-count")
+
+        pushConfigScroll();
+
         responseData = data
         responseData.forEach((elem) => {
             createCard(elem)
             globalIndex++
         })
-        if(!getIsMobile()) createPages(totalCount)
+        // console.log(configScroll)
+
+        if(!getIsMobile()) {
+            createPages(totalCount)
+        }
+        
         
 
     } catch (err) {
         console.log(err.status)
     } finally {
-        isLoading = false
+        setTimeout(() => {
+            isLoading = false
+        }, 150)
     }
 }
 // --------------------
@@ -149,19 +224,46 @@ limitSelector.onchange = () => {
 }
 
 // mobile scroll
+const goTofirstPage = () => {
+    page = 1
+    history.pushState(null, "", `?current-page=${page}&max-content=${limitSelector.value}`)
+    clearDOM()
+    fetchFunc()
+}
+const goToLastPage = () => {
+    
+}
+mobileFirstBtn.onclick = goTofirstPage
+
+
+const mobileFetch = async () => {
+    if(isLoading) return
+    page++
+    await fetchFunc();
+    history.pushState(null, "", `?current-page=${page}&max-content=${limitSelector.value}`)
+    console.log(1)
+}
+
 main.onscroll = () => {
-    if(!getIsMobile()) return
-    // main.scrollHeight вся высота скролла 
-    // main.offsetHeight - высота видимой зоны экрана
-    // main.scrollTop - высота проскроленого 
-    //
-    console.log(main.scrollHeight - (main.offsetHeight * 2))
-    console.log(main.scrollTop, 'main.scrollTop')
+    if(!getIsMobile()) return;
+    
     if(main.scrollHeight - (main.offsetHeight * 2) < main.scrollTop ){
-        console.log('ss')
-        fetchFunc()
+        // console.log('ss')        
+        mobileFetch()
     }
 }
+
+let currentPageGroupIndex = 0;
+const scrollToPageGroup = (index) => {
+    const pageGroup = configScroll[index];
+    if (!pageGroup) return;
+    main.scrollTo({
+        top: pageGroup.startY,
+        behavior: "smooth"
+    });
+    currentPageGroupIndex = index;
+
+};
 
 // onLoad
 
@@ -185,5 +287,27 @@ const start = () => {
 
 }
 
+downBtn.onclick = async () => {
+    const next = currentPageGroupIndex + 1;
+    if (next < configScroll.length) {
+        scrollToPageGroup(next);
+        return
+    }
+
+     if (isLoading) return;
+
+    page++;
+    await fetchFunc()
+    scrollToPageGroup(next)
+};
+
+upBtn.onclick = () => {
+    const prev = currentPageGroupIndex - 1;
+    if (prev >= 0) {
+        scrollToPageGroup(prev);
+    }
+};
 
 start()
+
+

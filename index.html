@@ -9,17 +9,30 @@
 <body>
     <header>
         <div class="header-inputs">
-            <input type="text">
+            <input type="text" id="post-title" placeholder="title">
+            <input type="text" id="post-body" placeholder="body">
+            <input type="number" id="post-id" placeholder="id">
+            <button id="post-btn">></button>
+
             <select id="select-limit" value="5"></select>
         </div>
     </header>
     
     <main>
         <div class="main-wrapper"></div>
+
     </main>
 
     <footer>
         <div class="pages-wrapper"></div>
+        <div class="mobile-buttons">
+            <button id="first"><</button>
+            <button id="last">></button>
+        </div>
+        <div class="up-down__btns">
+            <button id="up">U</button>
+            <button id="down">D</button>
+        </div>
     </footer>
 
     <script src="js/script.js"></script>
